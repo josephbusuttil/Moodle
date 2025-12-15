@@ -1,0 +1,49 @@
+name: Trigger auto deployment for hudu-mcp-app
+
+# When this action will be executed
+on:
+  # Automatically trigger it when detected changes in repo
+  push:
+    branches: 
+      [ master ]
+    paths:
+    - '**'
+    - '.github/workflows/hudu-mcp-app-AutoDeployTrigger-353fcd50-71e1-4c65-9860-359f40c183eb.yml'
+
+  # Allow manual trigger 
+  workflow_dispatch:      
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions: 
+      id-token: write #This is required for requesting the OIDC JWT Token
+      contents: read #Required when GH token is used to authenticate with private repo
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.HUDUMCPAPP_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.HUDUMCPAPP_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.HUDUMCPAPP_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: ${{ github.workspace }}
+          _dockerfilePathKey_: _dockerfilePath_
+          _targetLabelKey_: _targetLabel_
+          registryUrl: kgnhudumcpregistry.azurecr.io
+          registryUsername: ${{ secrets.HUDUMCPAPP_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.HUDUMCPAPP_REGISTRY_PASSWORD }}
+          containerAppName: hudu-mcp-app
+          resourceGroup: hudu-mcp-rg
+          imageToBuild: kgnhudumcpregistry.azurecr.io/hudu-mcp-app:${{ github.sha }}
+          _buildArgumentsKey_: |
+            _buildArgumentsValues_
+
+
